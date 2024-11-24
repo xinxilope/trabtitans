@@ -13,4 +13,8 @@ router.post('/login', userController.loginUsuario);
 // Rota para listar usuários (somente para usuários logados)
 router.get('/listar', auth, userController.listarUsuarios);
 
+// Rota para verificar código de TFA
+router.post('/verificar-codigo', userController.verificarCodigo);
+
+
 module.exports = router;

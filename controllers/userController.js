@@ -1,6 +1,8 @@
 // controllers/userController.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const { enviarCodigo } = require('../utils/emailService');
+const crypto = require('crypto'); // Para gerar o código
 
 exports.registrarUsuario = async (req, res) => {
     const { email, senha } = req.body;
@@ -32,29 +34,29 @@ exports.loginUsuario = async (req, res) => {
     const { email, senha } = req.body;
 
     try {
-        // Verifica se o usuário existe
         const usuario = await User.findOne({ where: { email } });
         if (!usuario) {
             return res.status(400).json({ message: 'Email ou senha inválidos.' });
         }
 
-        // Verifica se a senha é válida
         const senhaValida = await usuario.compararSenha(senha);
         if (!senhaValida) {
             return res.status(400).json({ message: 'Email ou senha inválidos.' });
         }
 
-        // Gera o token JWT
-        const token = jwt.sign(
-            { id: usuario.id, email: usuario.email }, // Dados no payload
-            process.env.JWT_SECRET,                  // Chave secreta
-            { expiresIn: '1h' }                      // Expiração do token
-        );
+        // Gerar código de verificação
+        const codigoTFA = crypto.randomInt(100000, 999999).toString();
+        const expiraEm = new Date(Date.now() + 5 * 60 * 1000); // Expira em 5 minutos
 
-        res.status(200).json({
-            message: 'Login bem-sucedido!',
-            token, // Retorna o token
-        });
+        // Salvar o código e a expiração no banco
+        usuario.tfaCode = codigoTFA;
+        usuario.tfaExpires = expiraEm;
+        await usuario.save();
+
+        // Enviar o código por e-mail
+        await enviarCodigo(usuario.email, codigoTFA);
+
+        res.status(200).json({ message: 'Código de verificação enviado ao seu e-mail.' });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Erro ao realizar login.' });
@@ -70,5 +72,41 @@ exports.listarUsuarios = async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Erro ao listar usuários.' });
+    }
+};
+
+exports.verificarCodigo = async (req, res) => {
+    const { email, codigo } = req.body;
+
+    try {
+        const usuario = await User.findOne({ where: { email } });
+        if (!usuario) {
+            return res.status(400).json({ message: 'Usuário não encontrado.' });
+        }
+
+        // Verificar se o código é válido
+        if (usuario.tfaCode !== codigo || new Date() > usuario.tfaExpires) {
+            return res.status(400).json({ message: 'Código inválido ou expirado.' });
+        }
+
+        // Gera um token JWT
+        const token = jwt.sign(
+            { id: usuario.id, email: usuario.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        // Limpa o código TFA após o uso
+        usuario.tfaCode = null;
+        usuario.tfaExpires = null;
+        await usuario.save();
+
+        res.status(200).json({
+            message: 'Login concluído com sucesso!',
+            token,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erro ao verificar código.' });
     }
 };
