@@ -1,15 +1,19 @@
-// app.js
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
+const passport = require('passport');
+const session = require('express-session');
+const createError = require('http-errors');
 const sequelize = require('./config/db'); // Banco de dados
-
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users'); // Rotas de usuários
-const createError = require('http-errors');
+const passportConfig = require('./config/passport'); // Configuração do Passport
 
 const app = express();
+
+// Configuração do Passport
+passportConfig();
 
 // Banco de dados: sincronização
 sequelize.sync()
@@ -26,6 +30,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Configuração de sessão para o Passport
+app.use(session({
+    secret: 'secreto',  // Recomendação: use uma variável de ambiente para maior segurança
+    resave: false,
+    saveUninitialized: true
+}));
+
+// Inicialização do Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Rotas
 app.use('/', indexRouter);
