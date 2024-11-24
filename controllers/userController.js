@@ -1,10 +1,10 @@
 // controllers/userController.js
-const User = require('../models/user'); // Modelo User
+const jwt = require('jsonwebtoken');
+const User = require('../models/user');
+const { enviarCodigo } = require('../utils/emailService');
+const crypto = require('crypto'); // Para gerar o código
 
-/**
- * Registro de um novo usuário
- */
-const registrarUsuario = async (req, res) => {
+exports.registrarUsuario = async (req, res) => {
     const { email, senha } = req.body;
 
     try {
@@ -14,39 +14,99 @@ const registrarUsuario = async (req, res) => {
             return res.status(400).json({ message: 'Email já está em uso.' });
         }
 
-        // Criação do novo usuário
+        // Cria o novo usuário
         const usuario = await User.create({ email, senha });
-        res.status(201).json({ message: 'Usuário registrado com sucesso!', usuario });
+
+        res.status(201).json({
+            message: 'Usuário registrado com sucesso!',
+            usuario: {
+                id: usuario.id,
+                email: usuario.email,
+            },
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Erro ao registrar usuário.' });
     }
 };
 
-/**
- * Login de um usuário existente
- */
-const loginUsuario = async (req, res) => {
+exports.loginUsuario = async (req, res) => {
     const { email, senha } = req.body;
 
     try {
-        // Verifica se o usuário existe
         const usuario = await User.findOne({ where: { email } });
         if (!usuario) {
             return res.status(400).json({ message: 'Email ou senha inválidos.' });
         }
 
-        // Verifica se a senha está correta
         const senhaValida = await usuario.compararSenha(senha);
         if (!senhaValida) {
             return res.status(400).json({ message: 'Email ou senha inválidos.' });
         }
 
-        res.status(200).json({ message: 'Login bem-sucedido!', usuario });
+        // Gerar código de verificação
+        const codigoTFA = crypto.randomInt(100000, 999999).toString();
+        const expiraEm = new Date(Date.now() + 5 * 60 * 1000); // Expira em 5 minutos
+
+        // Salvar o código e a expiração no banco
+        usuario.tfaCode = codigoTFA;
+        usuario.tfaExpires = expiraEm;
+        await usuario.save();
+
+        // Enviar o código por e-mail
+        await enviarCodigo(usuario.email, codigoTFA);
+
+        res.status(200).json({ message: 'Código de verificação enviado ao seu e-mail.' });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Erro ao realizar login.' });
     }
 };
 
-module.exports = { registrarUsuario, loginUsuario };
+exports.listarUsuarios = async (req, res) => {
+    try {
+        const usuarios = await User.findAll({
+            attributes: ['id', 'email'], // Retorna apenas os campos necessários
+        });
+        res.status(200).json({ usuarios });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erro ao listar usuários.' });
+    }
+};
+
+exports.verificarCodigo = async (req, res) => {
+    const { email, codigo } = req.body;
+
+    try {
+        const usuario = await User.findOne({ where: { email } });
+        if (!usuario) {
+            return res.status(400).json({ message: 'Usuário não encontrado.' });
+        }
+
+        // Verificar se o código é válido
+        if (usuario.tfaCode !== codigo || new Date() > usuario.tfaExpires) {
+            return res.status(400).json({ message: 'Código inválido ou expirado.' });
+        }
+
+        // Gera um token JWT
+        const token = jwt.sign(
+            { id: usuario.id, email: usuario.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        // Limpa o código TFA após o uso
+        usuario.tfaCode = null;
+        usuario.tfaExpires = null;
+        await usuario.save();
+
+        res.status(200).json({
+            message: 'Login concluído com sucesso!',
+            token,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erro ao verificar código.' });
+    }
+};

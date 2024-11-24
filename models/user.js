@@ -8,25 +8,29 @@ const User = sequelize.define('User', {
         type: DataTypes.STRING,
         allowNull: false,
         unique: true,
-        validate: {
-            isEmail: true,
-        },
+        validate: { isEmail: true },
     },
     senha: {
         type: DataTypes.STRING,
         allowNull: false,
     },
+    tfaCode: {
+        type: DataTypes.STRING, // Código temporário para TFA
+        allowNull: true,
+    },
+    tfaExpires: {
+        type: DataTypes.DATE, // Expiração do código TFA
+        allowNull: true,
+    },
 });
 
-// Criptografa a senha antes de criar o usuário
 User.beforeCreate(async (user) => {
     const salt = await bcrypt.genSalt(10);
     user.senha = await bcrypt.hash(user.senha, salt);
 });
 
-// Metodo para comparar senhas
 User.prototype.compararSenha = async function (senhaInformada) {
-    return await bcrypt.compare(senhaInformada, this.senha);
+    return bcrypt.compare(senhaInformada, this.senha);
 };
 
 module.exports = User;
