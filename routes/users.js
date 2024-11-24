@@ -16,5 +16,7 @@ router.get('/listar', auth, userController.listarUsuarios);
 // Rota para verificar código de TFA
 router.post('/verificar-codigo', userController.verificarCodigo);
 
+// Nova rota para login via Google OAuth2
+router.post('/login-google', userController.loginGoogle);
 
 module.exports = router;
