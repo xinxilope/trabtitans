@@ -24,7 +24,7 @@ User.beforeCreate(async (user) => {
     user.senha = await bcrypt.hash(user.senha, salt);
 });
 
-// Método para comparar senhas
+// Metodo para comparar senhas
 User.prototype.compararSenha = async function (senhaInformada) {
     return await bcrypt.compare(senhaInformada, this.senha);
 };
