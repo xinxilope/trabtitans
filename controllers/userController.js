@@ -1,10 +1,8 @@
 // controllers/userController.js
-const User = require('../models/user'); // Modelo User
+const jwt = require('jsonwebtoken');
+const User = require('../models/user');
 
-/**
- * Registro de um novo usuário
- */
-const registrarUsuario = async (req, res) => {
+exports.registrarUsuario = async (req, res) => {
     const { email, senha } = req.body;
 
     try {
@@ -14,19 +12,23 @@ const registrarUsuario = async (req, res) => {
             return res.status(400).json({ message: 'Email já está em uso.' });
         }
 
-        // Criação do novo usuário
+        // Cria o novo usuário
         const usuario = await User.create({ email, senha });
-        res.status(201).json({ message: 'Usuário registrado com sucesso!', usuario });
+
+        res.status(201).json({
+            message: 'Usuário registrado com sucesso!',
+            usuario: {
+                id: usuario.id,
+                email: usuario.email,
+            },
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Erro ao registrar usuário.' });
     }
 };
 
-/**
- * Login de um usuário existente
- */
-const loginUsuario = async (req, res) => {
+exports.loginUsuario = async (req, res) => {
     const { email, senha } = req.body;
 
     try {
@@ -36,17 +38,37 @@ const loginUsuario = async (req, res) => {
             return res.status(400).json({ message: 'Email ou senha inválidos.' });
         }
 
-        // Verifica se a senha está correta
+        // Verifica se a senha é válida
         const senhaValida = await usuario.compararSenha(senha);
         if (!senhaValida) {
             return res.status(400).json({ message: 'Email ou senha inválidos.' });
         }
 
-        res.status(200).json({ message: 'Login bem-sucedido!', usuario });
+        // Gera o token JWT
+        const token = jwt.sign(
+            { id: usuario.id, email: usuario.email }, // Dados no payload
+            process.env.JWT_SECRET,                  // Chave secreta
+            { expiresIn: '1h' }                      // Expiração do token
+        );
+
+        res.status(200).json({
+            message: 'Login bem-sucedido!',
+            token, // Retorna o token
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Erro ao realizar login.' });
     }
 };
 
-module.exports = { registrarUsuario, loginUsuario };
+exports.listarUsuarios = async (req, res) => {
+    try {
+        const usuarios = await User.findAll({
+            attributes: ['id', 'email'], // Retorna apenas os campos necessários
+        });
+        res.status(200).json({ usuarios });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erro ao listar usuários.' });
+    }
+};
