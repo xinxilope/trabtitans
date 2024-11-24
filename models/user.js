@@ -1,16 +1,15 @@
-// models/User.js
+// models/user.js
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const sequelize = require('../config/db');
 
-// Definindo o modelo User
 const User = sequelize.define('User', {
     email: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,  // Garantindo que o email seja único
+        unique: true,
         validate: {
-            isEmail: true,  // Validação para garantir que seja um email válido
+            isEmail: true,
         },
     },
     senha: {
@@ -19,15 +18,15 @@ const User = sequelize.define('User', {
     },
 });
 
-// Função para criptografar a senha antes de salvar no banco
+// Criptografa a senha antes de criar o usuário
 User.beforeCreate(async (user) => {
-    const salt = await bcrypt.genSalt(10); // Gera um salt
-    user.senha = await bcrypt.hash(user.senha, salt); // Criptografa a senha com o salt
+    const salt = await bcrypt.genSalt(10);
+    user.senha = await bcrypt.hash(user.senha, salt);
 });
 
-// Função para comparar a senha informada com a senha no banco
+// Método para comparar senhas
 User.prototype.compararSenha = async function (senhaInformada) {
-    return await bcrypt.compare(senhaInformada, this.senha); // Verifica se as senhas coincidem
+    return await bcrypt.compare(senhaInformada, this.senha);
 };
 
 module.exports = User;

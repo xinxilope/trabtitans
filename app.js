@@ -1,26 +1,22 @@
 // app.js
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
-const sequelize = require('./config/db');  // Importando a configuração de banco de dados
-const User = require('./models/user');  // Importando o modelo User
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
+const sequelize = require('./config/db'); // Banco de dados
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users'); // Importando a rota de usuários
+const indexRouter = require('./routes/index');
+const usersRouter = require('./routes/users'); // Rotas de usuários
+const createError = require('http-errors');
 
-var app = express();
+const app = express();
 
-// Sincronizando o banco de dados e criando a tabela, se não existir
+// Banco de dados: sincronização
 sequelize.sync()
-    .then(() => {
-        console.log('Banco de dados sincronizado com sucesso!');
-    })
-    .catch(err => {
-        console.error('Erro ao sincronizar o banco de dados:', err);
-    });
+    .then(() => console.log('Banco de dados sincronizado!'))
+    .catch(err => console.error('Erro ao sincronizar o banco de dados:', err));
 
-// view engine setup
+// Configuração de visualização
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
@@ -33,18 +29,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Rotas
 app.use('/', indexRouter);
-app.use('/users', usersRouter); // Usando a rota de usuários
+app.use('/users', usersRouter);
 
-// Tratamento de 404 (Rota não encontrada)
-app.use(function(req, res, next) {
+// Tratamento de erro 404
+app.use((req, res, next) => {
     next(createError(404));
 });
 
 // Tratamento de erros
-app.use(function(err, req, res, next) {
+app.use((err, req, res, next) => {
     res.locals.message = err.message;
     res.locals.error = req.app.get('env') === 'development' ? err : {};
-
     res.status(err.status || 500);
     res.render('error');
 });
