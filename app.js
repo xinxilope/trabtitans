@@ -12,6 +12,8 @@ const passportConfig = require("./config/passport"); // Configuração do Passpo
 
 const app = express();
 
+const middlewares = require("./middlewares");
+
 // Configuração do Passport
 passportConfig();
 
@@ -31,6 +33,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+app.use(middlewares.cors);
+app.use(middlewares.helmet);
+app.use(middlewares.rateLimit);
 
 // Configuração de sessão para o Passport
 app.use(
