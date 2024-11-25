@@ -4,12 +4,13 @@ const userController = require("../controllers/userController");
 const auth = require("../middlewares/auth"); // Middleware para autenticação
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
+const loginLimiter = require("../middlewares/loginLimiter"); // Importa o limitador
 
 // Rota para registro de usuário
 router.post("/registro", userController.registrarUsuario);
 
-// Rota para login de usuário
-router.post("/login", userController.loginUsuario);
+// Rota para login de usuário com limitador
+router.post("/login", loginLimiter, userController.loginUsuario);
 
 // Rota para listar usuários (somente para usuários logados)
 router.get("/listar", auth, userController.listarUsuarios);
