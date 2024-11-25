@@ -1,9 +1,8 @@
-// models/user.js
-const { DataTypes } = require('sequelize');
-const bcrypt = require('bcryptjs');
-const sequelize = require('../config/db');
+const { DataTypes } = require("sequelize");
+const bcrypt = require("bcryptjs");
+const sequelize = require("../config/db");
 
-const User = sequelize.define('User', {
+const User = sequelize.define("User", {
   email: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -12,7 +11,7 @@ const User = sequelize.define('User', {
   },
   senha: {
     type: DataTypes.STRING,
-    allowNull: true,
+    allowNull: true, // Permite null para usuários que usam login via Google
   },
   tfaCode: {
     type: DataTypes.STRING, // Código temporário para TFA
@@ -25,10 +24,16 @@ const User = sequelize.define('User', {
   googleId: {
     type: DataTypes.STRING, // ID único do Google
     allowNull: true, // Não obrigatório se o usuário registrar com e-mail/senha
+    unique: true, // Garante que o ID do Google seja único
   },
   name: {
     type: DataTypes.STRING, // Nome do usuário
-    allowNull: true, // Também não obrigatório para usuários sem login via Google
+    allowNull: true, // Não obrigatório para usuários sem login via Google
+  },
+  authMethod: {
+    type: DataTypes.STRING, // Define o método de autenticação: 'local' ou 'google'
+    allowNull: false,
+    defaultValue: "local", // Por padrão, é 'local'
   },
 });
 
