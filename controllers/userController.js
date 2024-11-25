@@ -40,19 +40,53 @@ exports.loginUsuario = async (req, res) => {
     try {
         const usuario = await User.findOne({ where: { email } });
         if (!usuario) {
-            return res.status(400).json({ message: 'Email ou senha inválidos.' });
+            return res.status(400).json({ message: "Email ou senha inválidos." });
         }
 
+        // Verifica se a conta está bloqueada
+        if (usuario.isBlocked) {
+            const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000); // 1 hora atrás
+            if (usuario.lastFailedAttempt > umaHoraAtras) {
+                return res
+                    .status(403)
+                    .json({ message: "Conta bloqueada. Tente novamente mais tarde." });
+            }
+
+            // Desbloqueia o usuário após 1 hora
+            usuario.isBlocked = false;
+            usuario.failedAttempts = 0;
+            usuario.lastFailedAttempt = null;
+            await usuario.save();
+        }
+
+        // Verifica a senha
         const senhaValida = await usuario.compararSenha(senha);
         if (!senhaValida) {
-            return res.status(400).json({ message: 'Email ou senha inválidos.' });
+            // Incrementa tentativas falhas
+            usuario.failedAttempts += 1;
+            usuario.lastFailedAttempt = new Date();
+
+            // Bloqueia o usuário se ultrapassar o limite de 5 tentativas
+            if (usuario.failedAttempts >= 5) {
+                usuario.isBlocked = true;
+            }
+
+            await usuario.save();
+            return res.status(400).json({
+                message: "Email ou senha inválidos.",
+                remainingAttempts: Math.max(0, 5 - usuario.failedAttempts),
+            });
         }
+
+        // Reseta as tentativas falhas após login bem-sucedido
+        usuario.failedAttempts = 0;
+        usuario.lastFailedAttempt = null;
+        await usuario.save();
 
         // Gerar código de verificação
         const codigoTFA = crypto.randomInt(100000, 999999).toString();
         const expiraEm = new Date(Date.now() + 5 * 60 * 1000); // Expira em 5 minutos
 
-        // Salvar o código e a expiração no banco
         usuario.tfaCode = codigoTFA;
         usuario.tfaExpires = expiraEm;
         await usuario.save();
@@ -60,10 +94,12 @@ exports.loginUsuario = async (req, res) => {
         // Enviar o código por e-mail
         await enviarCodigo(usuario.email, codigoTFA);
 
-        res.status(200).json({ message: 'Código de verificação enviado ao seu e-mail.' });
+        res
+            .status(200)
+            .json({ message: "Código de verificação enviado ao seu e-mail." });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'Erro ao realizar login.' });
+        res.status(500).json({ message: "Erro ao realizar login." });
     }
 };
 

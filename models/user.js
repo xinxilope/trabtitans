@@ -30,6 +30,18 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING, // Nome do usuário
     allowNull: true, // Também não obrigatório para usuários sem login via Google
   },
+  failedAttempts: {
+    type: DataTypes.INTEGER, // Número de tentativas falhas
+    defaultValue: 0,
+  },
+  lastFailedAttempt: {
+    type: DataTypes.DATE, // Data/hora da última tentativa falha
+    allowNull: true,
+  },
+  isBlocked: {
+    type: DataTypes.BOOLEAN, // Status da conta (bloqueada ou não)
+    defaultValue: false,
+  },
 });
 
 // Função de criptografia para senha
