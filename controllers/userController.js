@@ -9,7 +9,7 @@ const crypto = require('crypto'); // Para gerar o código
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 exports.registrarUsuario = async (req, res) => {
-    const { email, senha } = req.body;
+    const { nome, email, senha } = req.body;
 
     try {
         // Verifica se o email já está em uso
@@ -19,13 +19,14 @@ exports.registrarUsuario = async (req, res) => {
         }
 
         // Cria o novo usuário
-        const usuario = await User.create({ email, senha });
+        const usuario = await User.create({ name: nome, email, senha });
 
         res.status(201).json({
             message: 'Usuário registrado com sucesso!',
             usuario: {
                 id: usuario.id,
                 email: usuario.email,
+                nome: usuario.name,
             },
         });
     } catch (err) {
@@ -95,7 +96,7 @@ exports.verificarCodigo = async (req, res) => {
 
         // Gera um token JWT
         const token = jwt.sign(
-            { id: usuario.id, email: usuario.email },
+            { id: usuario.id, email: usuario.email, name: usuario.name },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
